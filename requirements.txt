@@ -1,0 +1,2 @@
+pyobjc-framework-Contacts
+requests

@@ -1,0 +1,59 @@
+#! /usr/bin/env python3
+
+import hashlib
+import os
+import requests
+
+import AddressBook
+import CoreMedia
+from AppKit import NSJPEGFileType, NSPNGFileType
+
+
+def write_img(image_data: CoreMedia.NSData, file_path: str, file_format: int):
+    image = CoreMedia.NSImage.alloc().initWithData_(image_data)
+    image.lockFocus()
+    rect = CoreMedia.NSMakeRect(0.0, 0.0, image.size().width, image.size().height)
+    img_rep = CoreMedia.NSBitmapImageRep.alloc().initWithFocusedViewRect_(rect)
+    image.unlockFocus()
+
+    data = img_rep.representationUsingType_properties_(file_format, None)
+    data.writeToFile_atomically_(file_path, False)
+
+
+def main():
+    output_path = "out"
+    os.makedirs(output_path, exist_ok=True)
+
+    book = AddressBook.ABAddressBook.sharedAddressBook()
+    for person in book.people():
+        person: AddressBook.ABPerson
+        first_name = person.valueForProperty_(AddressBook.kABFirstNameProperty) or ""
+        last_name = person.valueForProperty_(AddressBook.kABLastNameProperty) or ""
+        print(f"Searching images for \n{first_name} {last_name}:")
+
+        email_store = person.valueForProperty_(AddressBook.kABEmailProperty)
+        n_emails = AddressBook.ABMultiValueCount(email_store)
+        emails = [
+            AddressBook.ABMultiValueCopyValueAtIndex(email_store, idx).encode().decode()
+            for idx in range(n_emails)
+        ]
+
+        image_data = person.imageData()
+        file_name = os.path.join(output_path, f"{first_name.lower()}_{last_name.lower()}.jpg")
+        if image_data:
+            write_img(image_data, file_name, file_format=NSJPEGFileType)
+        else:
+            # if first_name == "" and last_name == "":
+            for email in emails:
+                email_hash = hashlib.md5(email.lower().strip().encode()).hexdigest()
+                url = f"https://www.gravatar.com/avatar/{email_hash}.jpg?d=404&s=500"
+                print(f"\t- e-mail: {email}\n\t  request: {url}")
+                request = requests.get(url, allow_redirects=True)
+                if request.status_code != 404:
+                    with open(file_name, "wb") as file:
+                        file.write(request.content)
+                    continue
+
+
+if __name__ == "__main__":
+    main()

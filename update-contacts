@@ -2,35 +2,46 @@
 
 import hashlib
 import os
+from abc import abstractmethod
+from typing import List
+
 import requests
 
 import AddressBook
-import CoreMedia
-from AppKit import NSJPEGFileType, NSPNGFileType
+from AppKit import (
+    NSBitmapImageRep,
+    NSData,
+    NSImage,
+    NSJPEGFileType,
+    NSMakeRect,
+    NSPNGFileType,
+)
 
 
-def write_img(image_data: CoreMedia.NSData, file_path: str, file_format: int):
-    image = CoreMedia.NSImage.alloc().initWithData_(image_data)
+def read_img(file_path: str) -> NSImage:
+    image = NSImage.alloc().initWithContentsOfFile_(file_path)
+    return image
+
+
+def write_img(image_data: NSData, file_path: str, file_format: int):
+    image = NSImage.alloc().initWithData_(image_data)
     image.lockFocus()
-    rect = CoreMedia.NSMakeRect(0.0, 0.0, image.size().width, image.size().height)
-    img_rep = CoreMedia.NSBitmapImageRep.alloc().initWithFocusedViewRect_(rect)
+    rect = NSMakeRect(0.0, 0.0, image.size().width, image.size().height)
+    img_rep = NSBitmapImageRep.alloc().initWithFocusedViewRect_(rect)
     image.unlockFocus()
 
     data = img_rep.representationUsingType_properties_(file_format, None)
     data.writeToFile_atomically_(file_path, False)
 
 
-def main():
-    output_path = "out"
-    os.makedirs(output_path, exist_ok=True)
+class Provider:
+    @abstractmethod
+    def get_image(self, person: AddressBook.ABPerson, file_name: str) -> bool:
+        ...
 
-    book = AddressBook.ABAddressBook.sharedAddressBook()
-    for person in book.people():
-        person: AddressBook.ABPerson
-        first_name = person.valueForProperty_(AddressBook.kABFirstNameProperty) or ""
-        last_name = person.valueForProperty_(AddressBook.kABLastNameProperty) or ""
-        print(f"Searching images for \n{first_name} {last_name}:")
 
+class GravatarProvider(Provider):
+    def get_image(self, person: AddressBook.ABPerson, file_name: str) -> bool:
         email_store = person.valueForProperty_(AddressBook.kABEmailProperty)
         n_emails = AddressBook.ABMultiValueCount(email_store)
         emails = [
@@ -38,21 +49,69 @@ def main():
             for idx in range(n_emails)
         ]
 
-        image_data = person.imageData()
-        file_name = os.path.join(output_path, f"{first_name.lower()}_{last_name.lower()}.jpg")
-        if image_data:
-            write_img(image_data, file_name, file_format=NSJPEGFileType)
+        for email in emails:
+            email_hash = hashlib.md5(email.lower().strip().encode()).hexdigest()
+            url = f"https://www.gravatar.com/avatar/{email_hash}.jpg?d=404&s=500"
+            print(f"\t- e-mail: {email}\n\t  request: {url}")
+            request = requests.get(url, allow_redirects=True)
+            if request.status_code != 404:
+                with open(file_name, "wb") as file:
+                    file.write(request.content)
+                continue
+
+
+def find_picture_for_person(
+    person: AddressBook.ABPerson, output_path: str, providers: List[Provider]
+):
+    person: AddressBook.ABPerson
+    first_name = person.valueForProperty_(AddressBook.kABFirstNameProperty) or ""
+    last_name = person.valueForProperty_(AddressBook.kABLastNameProperty) or ""
+    name = f"{first_name} {last_name}"
+
+    image_data = person.imageData()
+    file_path = os.path.join(
+        output_path, f"{first_name.lower()}_{last_name.lower()}.jpg"
+    )
+
+    if image_data:
+        print(f"{name}: already has a profile picture.")
+        return
+    elif os.path.exists(file_path):
+        print(f"{name}: A profile picture has already been downloaded.")
+    else:
+        print(f"{name}: Getting a profile picture.")
+        success = False
+        # for provider in providers:
+        #     success = provider.get_image(person, file_name=file_path)
+        #     if success:
+        #         break
+
+        if success:
+            print(f"{name}: Successfully found a profile picture.")
         else:
-            # if first_name == "" and last_name == "":
-            for email in emails:
-                email_hash = hashlib.md5(email.lower().strip().encode()).hexdigest()
-                url = f"https://www.gravatar.com/avatar/{email_hash}.jpg?d=404&s=500"
-                print(f"\t- e-mail: {email}\n\t  request: {url}")
-                request = requests.get(url, allow_redirects=True)
-                if request.status_code != 404:
-                    with open(file_name, "wb") as file:
-                        file.write(request.content)
-                    continue
+            print(f"{name}: Failed to find a profile picture.")
+            return
+
+    # apply the profile picture
+    image_data = read_img(file_path)
+    success = person.setImageData_(image_data.TIFFRepresentation())
+    if success:
+        print(f"{name}: New profile picture updated successfully.")
+    else:
+        print(f"{name}: Failed updating the profile picture.")
+
+
+def main():
+    output_path = "out"
+    os.makedirs(output_path, exist_ok=True)
+
+    providers = [GravatarProvider()]
+
+    book = AddressBook.ABAddressBook.sharedAddressBook()
+    for person in book.people():
+        find_picture_for_person(person, output_path, providers)
+
+    book.save()
 
 
 if __name__ == "__main__":

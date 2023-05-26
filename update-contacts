@@ -115,4 +115,28 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser("update-contacts")
+    parser.add_argument(
+        "--gen-config-files",
+        default=False,
+        action="store_true",
+        help="Generate the config file templates.",
+    )
+
+    subparsers = parser.add_subparsers()
+    providers_parser = subparsers.add_parser("providers")
+    providers_parser.add_argument(
+        "--no-gravatar",
+        default=False,
+        action="store_true",
+        help="Disable the Gravatar provider.",
+    )
+    providers_parser.add_argument(
+        "--no-linkedin",
+        default=False,
+        action="store_true",
+        help="Disable the LinkedIn provider.",
+    )
+
+    args = parser.parse_args()
+    main(config=args)

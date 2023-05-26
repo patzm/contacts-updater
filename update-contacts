@@ -225,7 +225,10 @@ def find_picture_for_person(
 
 def apply_picture_for_person(person: AddressBook.ABPerson, file_path: str) -> bool:
     image_data = read_img(file_path)
-    return person.setImageData_(image_data.TIFFRepresentation())
+    tiff_data = image_data.TIFFRepresentation()
+    bitmap_image = NSBitmapImageRep.alloc().initWithData_(tiff_data)
+    jpeg_data = bitmap_image.representationUsingType_properties_(NSJPEGFileType, None)
+    return person.setImageData_(jpeg_data)
 
 
 def main(config: argparse.Namespace):

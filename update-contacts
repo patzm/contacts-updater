@@ -215,6 +215,11 @@ def find_picture_for_person(
             if success:
                 break
 
+        if success:
+            logger.info(f"{name}: Successfully found a profile picture.")
+        else:
+            logger.warning(f"{name}: Failed to find a profile picture.")
+
         return success
 
 
@@ -277,10 +282,7 @@ def main(config: argparse.Namespace):
         )
 
         should_update = find_picture_for_person(person, file_path, providers)
-        if should_update:
-            logger.info(f"{name}: Successfully found a profile picture.")
-        else:
-            logger.warning(f"{name}: Failed to find a profile picture.")
+        if not should_update:
             continue
 
         success = apply_picture_for_person(person, file_path)

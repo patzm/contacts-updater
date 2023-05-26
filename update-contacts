@@ -36,12 +36,12 @@ def write_img(image_data: NSData, file_path: str, file_format: int):
 
 class Provider:
     @abstractmethod
-    def get_image(self, person: AddressBook.ABPerson, file_name: str) -> bool:
+    def get_image(self, file_name: str) -> bool:
         ...
 
 
 class GravatarProvider(Provider):
-    def get_image(self, person: AddressBook.ABPerson, file_name: str) -> bool:
+    def get_image(self, file_name: str, person: AddressBook.ABPerson) -> bool:
         email_store = person.valueForProperty_(AddressBook.kABEmailProperty)
         n_emails = AddressBook.ABMultiValueCount(email_store)
         emails = [
@@ -81,10 +81,10 @@ def find_picture_for_person(
     else:
         print(f"{name}: Getting a profile picture.")
         success = False
-        # for provider in providers:
-        #     success = provider.get_image(person, file_name=file_path)
-        #     if success:
-        #         break
+        for provider in providers:
+            success = provider.get_image(file_name=file_path, person=person)
+            if success:
+                break
 
         if success:
             print(f"{name}: Successfully found a profile picture.")

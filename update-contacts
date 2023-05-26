@@ -108,7 +108,8 @@ class LinkedInProvider(Provider):
             return None
 
         # navigate to the first search result
-        results[0].click()
+        first_result_link = results[0].find_element(by=By.TAG_NAME, value="a")
+        first_result_link.click()
         try:
             wait.WebDriverWait(self.driver, timeout=5).until(
                 method=expected_conditions.presence_of_element_located(

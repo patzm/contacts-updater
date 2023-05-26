@@ -96,6 +96,11 @@ class LinkedInProvider(Provider):
             logger.info("hhi")
             pass
 
+        self._img_classes = {
+            "pv-non-self-member-photo-modal__image",
+            "pv-top-card-profile-picture__image",
+        }
+
     def __del__(self):
         self.driver.close()
 
@@ -144,7 +149,9 @@ class LinkedInProvider(Provider):
         picture_element = None
         picture_elements = self.driver.find_elements(by=By.TAG_NAME, value="img")
         for pe in picture_elements:
-            if "pv-non-self-member-photo-modal__image" in pe.get_attribute("class"):
+            if any(
+                img_cls in pe.get_attribute("class") for img_cls in self._img_classes
+            ):
                 picture_element = pe
                 break
 

@@ -53,11 +53,13 @@ class GravatarProvider(Provider):
             email_hash = hashlib.md5(email.lower().strip().encode()).hexdigest()
             url = f"https://www.gravatar.com/avatar/{email_hash}.jpg?d=404&s=500"
             print(f"\t- e-mail: {email}\n\t  request: {url}")
-            request = requests.get(url, allow_redirects=True)
-            if request.status_code != 404:
-                with open(file_name, "wb") as file:
-                    file.write(request.content)
-                continue
+            picture_request = requests.get(url, allow_redirects=True)
+            if picture_request.status_code != 404:
+                with open(file_name, "wb") as picture_file:
+                    picture_file.write(picture_request.content)
+                return True
+
+        return False
 
 
 def find_picture_for_person(

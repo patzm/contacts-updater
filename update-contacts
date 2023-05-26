@@ -145,6 +145,7 @@ class LinkedInProvider(Provider):
         for he in heading_elements:
             if "text-heading-xlarge" in he.get_attribute("class"):
                 if Levenshtein.ratio(he.text, name, score_cutoff=0.6):
+                    match = True
                     break
 
         if not match:

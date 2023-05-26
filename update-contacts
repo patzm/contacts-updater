@@ -5,6 +5,7 @@ import configparser
 import hashlib
 import logging
 import os
+import sys
 from abc import abstractmethod
 from typing import List, Optional
 
@@ -23,6 +24,10 @@ from selenium import webdriver
 from selenium.common import exceptions
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions, wait
+
+
+logger = logging.getLogger("update-contacts")
+logger.setLevel(logging.DEBUG)
 
 
 def read_img(file_path: str) -> NSImage:
@@ -59,7 +64,7 @@ class GravatarProvider(Provider):
         for email in emails:
             email_hash = hashlib.md5(email.lower().strip().encode()).hexdigest()
             url = f"https://www.gravatar.com/avatar/{email_hash}.jpg?d=404&s=500"
-            print(f"\t- e-mail: {email}\n\t  request: {url}")
+            logger.info(f"\t- e-mail: {email}\n\t  request: {url}")
             picture_request = requests.get(url, allow_redirects=True)
             if picture_request.status_code != 404:
                 with open(file_name, "wb") as picture_file:
@@ -88,7 +93,7 @@ class LinkedInProvider(Provider):
         login_button.click()
 
         if self.driver.current_url == "https://www.linkedin.com/check/manage-account":
-            print("hhi")
+            logger.info("hhi")
             pass
 
     def __del__(self):
@@ -138,6 +143,7 @@ class LinkedInProvider(Provider):
 
         picture_element = self.driver.find_element(by=By.TAG_NAME, value="img")
         picture_source = picture_element.get_attribute("src")
+        logging.debug(f"{name}: picture url found {picture_source}")
 
         picture = requests.get(picture_source, allow_redirects=True)
         if picture.status_code == 200:
@@ -162,12 +168,12 @@ def find_picture_for_person(
     )
 
     if image_data:
-        print(f"{name}: already has a profile picture.")
+        logger.info(f"{name}: already has a profile picture.")
         return
     elif os.path.exists(file_path):
-        print(f"{name}: A profile picture has already been downloaded.")
+        logger.info(f"{name}: A profile picture has already been downloaded.")
     else:
-        print(f"{name}: Getting a profile picture.")
+        logger.info(f"{name}: Getting a profile picture.")
         success = False
         for provider in providers:
             success = provider.get_image(file_name=file_path, person=person)
@@ -175,18 +181,18 @@ def find_picture_for_person(
                 break
 
         if success:
-            print(f"{name}: Successfully found a profile picture.")
+            logger.info(f"{name}: Successfully found a profile picture.")
         else:
-            print(f"{name}: Failed to find a profile picture.")
+            logger.warning(f"{name}: Failed to find a profile picture.")
             return
 
     # apply the profile picture
     image_data = read_img(file_path)
     success = person.setImageData_(image_data.TIFFRepresentation())
     if success:
-        print(f"{name}: New profile picture updated successfully.")
+        logger.info(f"{name}: New profile picture updated successfully.")
     else:
-        print(f"{name}: Failed updating the profile picture.")
+        logger.warning(f"{name}: Failed updating the profile picture.")
 
 
 def main(config: argparse.Namespace):
@@ -208,13 +214,13 @@ def main(config: argparse.Namespace):
             with open(credentials_file_path, "w") as credentials_file:
                 credentials.write(credentials_file)
 
-            print(
+            logger.info(
                 f"The template credentials file has been written to {credentials_file_path}"
             )
             exit(0)
         else:
             credentials = dict()
-            logging.warning(
+            logger.warning(
                 f"No 'credentials.ini' file found in {config_dir}. Disabling providers that require credentials.\n"
                 f"Provide the --gen-config-files flag to generate a template.\n"
                 f"Further reading: https://docs.python.org/3/library/configparser.html"
@@ -265,4 +271,9 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(logging.INFO)
+    logger.addHandler(stdout_handler)
+
     main(config=args)

@@ -193,23 +193,19 @@ class LinkedInProvider(Provider):
 
 
 def find_picture_for_person(
-    person: AddressBook.ABPerson, output_path: str, providers: List[Provider]
-):
-    person: AddressBook.ABPerson
+    person: AddressBook.ABPerson, file_path: str, providers: List[Provider]
+) -> bool:
     first_name = person.valueForProperty_(AddressBook.kABFirstNameProperty) or ""
     last_name = person.valueForProperty_(AddressBook.kABLastNameProperty) or ""
     name = f"{first_name} {last_name}"
 
     image_data = person.imageData()
-    file_path = os.path.join(
-        output_path, f"{first_name.lower()}_{last_name.lower()}.jpg"
-    )
-
     if image_data:
         logger.info(f"{name}: already has a profile picture.")
-        return
+        return False
     elif os.path.exists(file_path):
         logger.info(f"{name}: A profile picture has already been downloaded.")
+        return False
     else:
         logger.info(f"{name}: Getting a profile picture.")
         success = False
@@ -218,19 +214,12 @@ def find_picture_for_person(
             if success:
                 break
 
-        if success:
-            logger.info(f"{name}: Successfully found a profile picture.")
-        else:
-            logger.warning(f"{name}: Failed to find a profile picture.")
-            return
+        return success
 
-    # apply the profile picture
+
+def apply_picture_for_person(person: AddressBook.ABPerson, file_path: str) -> bool:
     image_data = read_img(file_path)
-    success = person.setImageData_(image_data.TIFFRepresentation())
-    if success:
-        logger.info(f"{name}: New profile picture updated successfully.")
-    else:
-        logger.warning(f"{name}: Failed updating the profile picture.")
+    return person.setImageData_(image_data.TIFFRepresentation())
 
 
 def main(config: argparse.Namespace):
@@ -279,7 +268,25 @@ def main(config: argparse.Namespace):
 
     book = AddressBook.ABAddressBook.sharedAddressBook()
     for person in book.people():
-        find_picture_for_person(person, output_path, providers)
+        first_name = person.valueForProperty_(AddressBook.kABFirstNameProperty) or ""
+        last_name = person.valueForProperty_(AddressBook.kABLastNameProperty) or ""
+        name = f"{first_name} {last_name}"
+        file_path = os.path.join(
+            output_path, f"{first_name.lower()}_{last_name.lower()}.jpg"
+        )
+
+        should_update = find_picture_for_person(person, file_path, providers)
+        if should_update:
+            logger.info(f"{name}: Successfully found a profile picture.")
+        else:
+            logger.warning(f"{name}: Failed to find a profile picture.")
+            continue
+
+        success = apply_picture_for_person(person, file_path)
+        if success:
+            logger.info(f"{name}: New profile picture updated successfully.")
+        else:
+            logger.warning(f"{name}: Failed updating the profile picture.")
 
     book.save()
 

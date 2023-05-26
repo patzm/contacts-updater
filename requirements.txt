@@ -1,2 +1,3 @@
+pyobjc-framework-AddressBook
 pyobjc-framework-Contacts
 requests

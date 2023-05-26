@@ -25,9 +25,14 @@ from selenium.common import exceptions
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions, wait
 
+"""Logging"""
+app_name = "update-contacts"
+log_file_dir = appdirs.user_cache_dir(app_name)
+os.makedirs(log_file_dir, exist_ok=True)
+logging.basicConfig(filename=os.path.join(log_file_dir, "log.txt"), level=logging.DEBUG)
 
-logger = logging.getLogger("update-contacts")
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger(app_name)
+logger.setLevel(logging.NOTSET)
 
 
 def read_img(file_path: str) -> NSImage:
@@ -264,7 +269,7 @@ def main(config: argparse.Namespace):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser("update-contacts")
+    parser = argparse.ArgumentParser(app_name)
     parser.add_argument(
         "--gen-config-files",
         default=False,

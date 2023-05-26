@@ -202,6 +202,7 @@ def find_picture_for_person(
     image_data = person.imageData()
     if image_data:
         logger.info(f"{name}: already has a profile picture.")
+        write_img(image_data, file_path, NSJPEGFileType)
         return False
     elif os.path.exists(file_path):
         logger.info(f"{name}: A profile picture has already been downloaded.")

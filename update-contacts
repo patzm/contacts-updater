@@ -19,7 +19,6 @@ from AppKit import (
     NSImage,
     NSJPEGFileType,
     NSMakeRect,
-    NSPNGFileType,
 )
 from selenium import webdriver
 from selenium.common import exceptions

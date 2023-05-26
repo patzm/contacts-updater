@@ -288,10 +288,9 @@ def main(config: argparse.Namespace):
         success = apply_picture_for_person(person, file_path)
         if success:
             logger.info(f"{name}: New profile picture updated successfully.")
+            book.save()
         else:
             logger.warning(f"{name}: Failed updating the profile picture.")
-
-    book.save()
 
 
 if __name__ == "__main__":

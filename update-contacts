@@ -206,7 +206,7 @@ def find_picture_for_person(
         return False
     elif os.path.exists(file_path):
         logger.info(f"{name}: A profile picture has already been downloaded.")
-        return False
+        return True
     else:
         logger.info(f"{name}: Getting a profile picture.")
         success = False

@@ -141,7 +141,17 @@ class LinkedInProvider(Provider):
         )
         profile_picture_button.click()
 
-        picture_element = self.driver.find_element(by=By.TAG_NAME, value="img")
+        picture_element = None
+        picture_elements = self.driver.find_elements(by=By.TAG_NAME, value="img")
+        for pe in picture_elements:
+            if "pv-non-self-member-photo-modal__image" in pe.get_attribute("class"):
+                picture_element = pe
+                break
+
+        if picture_element is None:
+            logger.warning(f"{name}: failed to find the picture node.")
+            return False
+
         picture_source = picture_element.get_attribute("src")
         logging.debug(f"{name}: picture url found {picture_source}")
 

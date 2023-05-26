@@ -232,7 +232,7 @@ def apply_picture_for_person(person: AddressBook.ABPerson, file_path: str) -> bo
 
 
 def main(config: argparse.Namespace):
-    output_path = "out"
+    output_path = os.path.join(appdirs.user_cache_dir(app_name), "profile-pictures")
     os.makedirs(output_path, exist_ok=True)
 
     config_dir = appdirs.user_config_dir(appname="update-contacts")

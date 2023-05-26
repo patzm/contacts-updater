@@ -1,13 +1,16 @@
 #! /usr/bin/env python3
 
+import argparse
+import configparser
 import hashlib
+import logging
 import os
 from abc import abstractmethod
-from typing import List
-
-import requests
+from typing import List, Optional
 
 import AddressBook
+import appdirs
+import requests
 from AppKit import (
     NSBitmapImageRep,
     NSData,
@@ -16,6 +19,10 @@ from AppKit import (
     NSMakeRect,
     NSPNGFileType,
 )
+from selenium import webdriver
+from selenium.common import exceptions
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions, wait
 
 
 def read_img(file_path: str) -> NSImage:
@@ -62,6 +69,84 @@ class GravatarProvider(Provider):
         return False
 
 
+class LinkedInProvider(Provider):
+    def __init__(self, username: str, password: str):
+        self.driver = webdriver.Firefox()
+        self.driver.get("https://linkedin.com/login")
+
+        username_field = self.driver.find_element(by=By.ID, value="username")
+        username_field.clear()
+        username_field.send_keys(username)
+
+        password_field = self.driver.find_element(by=By.ID, value="password")
+        password_field.clear()
+        password_field.send_keys(password)
+
+        login_button = self.driver.find_element(
+            by=By.CSS_SELECTOR, value="[type='submit']"
+        )
+        login_button.click()
+
+        if self.driver.current_url == "https://www.linkedin.com/check/manage-account":
+            print("hhi")
+            pass
+
+    def __del__(self):
+        self.driver.close()
+
+    def search_profile(self, name: str) -> Optional[str]:
+        url = (
+            f"https://www.linkedin.com/search/results/people/?"
+            f"keywords={name}"
+            f'&network=["F"]'
+            f"&origin=GLOBAL_SEARCH_HEADER"
+            f"&sid=t9k"
+        )
+        self.driver.get(url)
+        results = self.driver.find_elements(by=By.CLASS_NAME, value="entity-result")
+        if len(results) == 0:
+            return None
+
+        # navigate to the first search result
+        results[0].click()
+        try:
+            wait.WebDriverWait(self.driver, timeout=5).until(
+                method=expected_conditions.presence_of_element_located(
+                    (By.ID, "profile-content")
+                )
+            )
+        except exceptions.TimeoutException:
+            return None
+
+        profile_url = self.driver.current_url
+        return profile_url
+
+    def get_image(self, file_name: str, person: AddressBook.ABPerson) -> bool:
+        first_name = person.valueForProperty_(AddressBook.kABFirstNameProperty) or ""
+        last_name = person.valueForProperty_(AddressBook.kABLastNameProperty) or ""
+        name = f"{first_name} {last_name}"
+
+        profile_url = self.search_profile(name)
+        if not profile_url:
+            return False
+
+        profile_picture_button = self.driver.find_element(
+            by=By.CLASS_NAME, value="pv-top-card__non-self-photo-wrapper"
+        )
+        profile_picture_button.click()
+
+        picture_element = self.driver.find_element(by=By.TAG_NAME, value="img")
+        picture_source = picture_element.get_attribute("src")
+
+        picture = requests.get(picture_source, allow_redirects=True)
+        if picture.status_code == 200:
+            with open(file_name, "wb") as picture_file:
+                picture_file.write(picture.content)
+            return True
+
+        return False
+
+
 def find_picture_for_person(
     person: AddressBook.ABPerson, output_path: str, providers: List[Provider]
 ):
@@ -103,11 +188,49 @@ def find_picture_for_person(
         print(f"{name}: Failed updating the profile picture.")
 
 
-def main():
+def main(config: argparse.Namespace):
     output_path = "out"
     os.makedirs(output_path, exist_ok=True)
 
-    providers = [GravatarProvider()]
+    config_dir = appdirs.user_config_dir(appname="update-contacts")
+    os.makedirs(config_dir, exist_ok=True)
+
+    credentials_file_path = os.path.join(config_dir, "credentials.ini")
+    credentials = configparser.ConfigParser()
+    if not os.path.exists(credentials_file_path):
+        if config.gen_config_files:
+            credentials["linkedin"] = {}
+            credentials["linkedin"]["username"] = "your@email.com"
+            credentials["linkedin"]["password"] = "your-password"
+
+            credentials["proxyurl"]["api_key"] = "your-api-key"
+            with open(credentials_file_path, "w") as credentials_file:
+                credentials.write(credentials_file)
+
+            print(
+                f"The template credentials file has been written to {credentials_file_path}"
+            )
+            exit(0)
+        else:
+            credentials = dict()
+            logging.warning(
+                f"No 'credentials.ini' file found in {config_dir}. Disabling providers that require credentials.\n"
+                f"Provide the --gen-config-files flag to generate a template.\n"
+                f"Further reading: https://docs.python.org/3/library/configparser.html"
+            )
+    else:
+        credentials.read(credentials_file_path)
+
+    providers = []
+    if not config.no_linkedin and "linkedin" in credentials:
+        providers.append(
+            LinkedInProvider(
+                username=credentials["linkedin"]["username"],
+                password=credentials["linkedin"]["password"],
+            )
+        )
+    if not config.no_gravatar:
+        providers.append(GravatarProvider())
 
     book = AddressBook.ABAddressBook.sharedAddressBook()
     for person in book.people():

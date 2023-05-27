@@ -10,16 +10,12 @@ from abc import abstractmethod
 from typing import List, Optional, Tuple
 
 import AddressBook
+import AppKit
+import Foundation
+import Contacts
 import appdirs
 import Levenshtein
 import requests
-from AppKit import (
-    NSBitmapImageRep,
-    NSData,
-    NSImage,
-    NSJPEGFileType,
-    NSMakeRect,
-)
 from selenium import webdriver
 from selenium.common import exceptions
 from selenium.webdriver.common.by import By
@@ -35,16 +31,16 @@ logger = logging.getLogger(app_name)
 logger.setLevel(logging.NOTSET)
 
 
-def read_img(file_path: str) -> NSImage:
-    image = NSImage.alloc().initWithContentsOfFile_(file_path)
+def read_img(file_path: str) -> Foundation.NSImage:
+    image = Foundation.NSImage.alloc().initWithContentsOfFile_(file_path)
     return image
 
 
-def write_img(image_data: NSData, file_path: str, file_format: int):
-    image = NSImage.alloc().initWithData_(image_data)
+def write_img(image_data: Foundation.NSData, file_path: str, file_format: int):
+    image = Foundation.NSImage.alloc().initWithData_(image_data)
     image.lockFocus()
-    rect = NSMakeRect(0.0, 0.0, image.size().width, image.size().height)
-    img_rep = NSBitmapImageRep.alloc().initWithFocusedViewRect_(rect)
+    rect = Foundation.NSMakeRect(0.0, 0.0, image.size().width, image.size().height)
+    img_rep = AppKit.NSBitmapImageRep.alloc().initWithFocusedViewRect_(rect)
     image.unlockFocus()
 
     data = img_rep.representationUsingType_properties_(file_format, None)
@@ -206,7 +202,7 @@ def find_picture_for_person(
     image_data = person.imageData()
     if image_data:
         logger.info(f"{name}: already has a profile picture.")
-        write_img(image_data, file_path, NSJPEGFileType)
+        write_img(image_data, file_path, AppKit.NSJPEGFileType)
         return False
     elif os.path.exists(file_path):
         logger.info(f"{name}: A profile picture has already been downloaded.")
@@ -230,8 +226,10 @@ def find_picture_for_person(
 def apply_picture_for_person(person: AddressBook.ABPerson, file_path: str) -> bool:
     image_data = read_img(file_path)
     tiff_data = image_data.TIFFRepresentation()
-    bitmap_image = NSBitmapImageRep.alloc().initWithData_(tiff_data)
-    jpeg_data = bitmap_image.representationUsingType_properties_(NSJPEGFileType, None)
+    bitmap_image = AppKit.NSBitmapImageRep.alloc().initWithData_(tiff_data)
+    jpeg_data = bitmap_image.representationUsingType_properties_(
+        AppKit.NSJPEGFileType, None
+    )
     return person.setImageData_(jpeg_data)
 
 

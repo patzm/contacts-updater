@@ -250,7 +250,6 @@ def main(config: argparse.Namespace):
             credentials["linkedin"]["username"] = "your@email.com"
             credentials["linkedin"]["password"] = "your-password"
 
-            credentials["proxyurl"]["api_key"] = "your-api-key"
             with open(credentials_file_path, "w") as credentials_file:
                 credentials.write(credentials_file)
 

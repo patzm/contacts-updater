@@ -7,7 +7,7 @@ import logging
 import os
 import sys
 from abc import abstractmethod
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import AddressBook
 import appdirs
@@ -49,6 +49,12 @@ def write_img(image_data: NSData, file_path: str, file_format: int):
 
     data = img_rep.representationUsingType_properties_(file_format, None)
     data.writeToFile_atomically_(file_path, False)
+
+
+def person_get_name(person: AddressBook.ABPerson) -> Tuple[str, str]:
+    first_name = person.valueForProperty_(AddressBook.kABFirstNameProperty) or ""
+    last_name = person.valueForProperty_(AddressBook.kABLastNameProperty) or ""
+    return first_name, last_name
 
 
 class Provider:
@@ -154,8 +160,7 @@ class LinkedInProvider(Provider):
         return profile_url
 
     def get_image(self, file_name: str, person: AddressBook.ABPerson) -> bool:
-        first_name = person.valueForProperty_(AddressBook.kABFirstNameProperty) or ""
-        last_name = person.valueForProperty_(AddressBook.kABLastNameProperty) or ""
+        first_name, last_name = person_get_name(person)
         name = f"{first_name} {last_name}"
 
         profile_url = self.search_profile(first_name, last_name)
@@ -195,8 +200,7 @@ class LinkedInProvider(Provider):
 def find_picture_for_person(
     person: AddressBook.ABPerson, file_path: str, providers: List[Provider]
 ) -> bool:
-    first_name = person.valueForProperty_(AddressBook.kABFirstNameProperty) or ""
-    last_name = person.valueForProperty_(AddressBook.kABLastNameProperty) or ""
+    first_name, last_name = person_get_name(person)
     name = f"{first_name} {last_name}"
 
     image_data = person.imageData()
@@ -277,8 +281,7 @@ def main(config: argparse.Namespace):
 
     book = AddressBook.ABAddressBook.sharedAddressBook()
     for person in book.people():
-        first_name = person.valueForProperty_(AddressBook.kABFirstNameProperty) or ""
-        last_name = person.valueForProperty_(AddressBook.kABLastNameProperty) or ""
+        first_name, last_name = person_get_name(person)
         name = f"{first_name} {last_name}"
         file_path = os.path.join(
             output_path, f"{first_name.lower()}_{last_name.lower()}.jpg"

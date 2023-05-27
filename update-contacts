@@ -5,6 +5,7 @@ import configparser
 import hashlib
 import logging
 import os
+import re
 import sys
 from abc import abstractmethod
 from typing import List, Optional, Tuple
@@ -103,11 +104,68 @@ class LinkedInProvider(Provider):
             "pv-non-self-member-photo-modal__image",
             "pv-top-card-profile-picture__image",
         }
+        self._username_pattern = re.compile(r"https://www\.linkedin\.com/in/([^/]+)/?")
 
     def __del__(self):
         self.driver.close()
 
-    def search_profile(self, first_name: str, last_name: str) -> Optional[str]:
+    def get_social(self, person: AddressBook.ABPerson) -> Optional[str]:
+        social_services = person.valueForProperty_(AddressBook.kABSocialProfileProperty)
+        if not social_services:
+            return None
+
+        for social_service in social_services._allValues():
+            if (
+                social_service.get(AddressBook.kABSocialProfileServiceKey)
+                == AddressBook.kABSocialProfileServiceLinkedIn
+            ):
+                url = social_service.get(AddressBook.kABSocialProfileURLKey)
+                username = social_service.get(AddressBook.kABSocialProfileUsernameKey)
+                if url and not username:
+                    social_service[AddressBook.kABSocialProfileUsernameKey] = self.get_username_from_url(url)
+                    person.setValue_forProperty_(social_services, AddressBook.kABSocialProfileProperty)
+                elif username and not url:
+                    social_service[AddressBook.kABSocialProfileURLKey] = f"https://www.linkedin.com/in/{username}/"
+                    person.setValue_forProperty_(social_services, AddressBook.kABSocialProfileProperty)
+                elif not username and not url:
+                    first_name, last_name = person_get_name(person)
+                    raise ValueError(
+                        f"{first_name} {last_name}: Either username or url should have been populated, found none."
+                    )
+
+                return url
+
+        return None
+
+    def get_username_from_url(self, url: str) -> Optional[str]:
+        match = self._username_pattern.search(url)
+        return match.group(1) if match else None
+
+    def set_social(self, person: AddressBook.ABPerson, url: str):
+        username = self.get_username_from_url(url)
+        linkedin_profile = Foundation.NSDictionary.dictionaryWithDictionary_(
+            {
+                AddressBook.kABSocialProfileServiceKey: AddressBook.kABSocialProfileServiceLinkedIn,
+                AddressBook.kABSocialProfileUsernameKey: username,
+                AddressBook.kABSocialProfileURLKey: url,
+            }
+        )
+
+        social_profiles = person.valueForProperty_(AddressBook.kABSocialProfileProperty)
+        if social_profiles:
+            social_profiles = social_profiles.mutableCopy()
+        else:
+            social_profiles = AddressBook.ABMutableMultiValue.alloc().init()
+        social_profiles.addValue_withLabel_(linkedin_profile, AddressBook.kABSocialProfileServiceLinkedIn)
+
+        person.setValue_forProperty_(social_profiles, AddressBook.kABSocialProfileProperty)
+
+    def search_profile(self, person: AddressBook.ABPerson) -> Optional[str]:
+        social = self.get_social(person)
+        if social:
+            return social
+
+        first_name, last_name = person_get_name(person)
         if not last_name or not first_name:
             return None
 
@@ -147,19 +205,45 @@ class LinkedInProvider(Provider):
             return None
 
         profile_url = self.driver.current_url
+        self.set_social(person, profile_url)
         return profile_url
 
     def get_image(self, file_name: str, person: AddressBook.ABPerson) -> bool:
         first_name, last_name = person_get_name(person)
         name = f"{first_name} {last_name}"
 
-        profile_url = self.search_profile(first_name, last_name)
+        profile_url = self.search_profile(person)
         if not profile_url:
             return False
 
-        profile_picture_button = self.driver.find_element(by=By.CLASS_NAME, value="pv-top-card__non-self-photo-wrapper")
-        profile_picture_button.click()
+        if self.driver.current_url != profile_url:
+            self.driver.get(profile_url)
+        if "overlay/profile-video" in profile_url:
+            # This user's profile shows a video
+            classes = " ".join(
+                (
+                    "artdeco-dropdown__trigger",
+                    "artdeco-dropdown__trigger--placement-bottom",
+                    "ember-view",
+                    "artdeco-button",
+                    "artdeco-button--2",
+                    "artdeco-button--circle",
+                    "artdeco-button--inverse",
+                    "artdeco-button--tertiary",
+                )
+            )
+            context_menu_button = self.driver.find_element(By.XPATH, f'//button[@class="{classes}"]')
+            context_menu_button.click()
+            view_profile_photo_element = self.driver.find_element(By.CLASS_NAME, "view-profile-photo-trigger")
+            view_profile_photo_element.click()
 
+        else:
+            profile_picture_button = self.driver.find_element(
+                by=By.CLASS_NAME, value="pv-top-card__non-self-photo-wrapper"
+            )
+            profile_picture_button.click()
+
+        self.driver.implicitly_wait(3)
         picture_element = None
         picture_elements = self.driver.find_elements(by=By.TAG_NAME, value="img")
         for pe in picture_elements:

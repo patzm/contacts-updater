@@ -55,7 +55,7 @@ def person_get_name(person: AddressBook.ABPerson) -> Tuple[str, str]:
 
 class Provider:
     @abstractmethod
-    def get_image(self, file_name: str) -> bool:
+    def get_image(self, file_name: str, person: AddressBook.ABPerson) -> bool:
         ...
 
 

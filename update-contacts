@@ -266,14 +266,17 @@ def main(config: argparse.Namespace):
         credentials.read(credentials_file_path)
 
     providers = []
-    if not config.no_linkedin and "linkedin" in credentials:
+    if (
+        not getattr(config.providers, "no_linkedin", False)
+        and "linkedin" in credentials
+    ):
         providers.append(
             LinkedInProvider(
                 username=credentials["linkedin"]["username"],
                 password=credentials["linkedin"]["password"],
             )
         )
-    if not config.no_gravatar:
+    if not getattr(config.providers, "no_gravatar", False):
         providers.append(GravatarProvider())
 
     book = AddressBook.ABAddressBook.sharedAddressBook()
@@ -305,7 +308,7 @@ if __name__ == "__main__":
         help="Generate the config file templates.",
     )
 
-    subparsers = parser.add_subparsers()
+    subparsers = parser.add_subparsers(dest="providers")
     providers_parser = subparsers.add_parser("providers")
     providers_parser.add_argument(
         "--no-gravatar",

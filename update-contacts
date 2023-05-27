@@ -100,8 +100,7 @@ class LinkedInProvider(Provider):
         login_button.click()
 
         if self.driver.current_url == "https://www.linkedin.com/check/manage-account":
-            logger.info("hhi")
-            pass
+            raise NotImplementedError(f"The account management dialog isn't implemented. Please manually approve it.")
 
         self._img_classes = {
             "pv-non-self-member-photo-modal__image",

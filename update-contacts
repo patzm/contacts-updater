@@ -10,10 +10,10 @@ from abc import abstractmethod
 from typing import List, Optional, Tuple
 
 import AddressBook
-import AppKit
-import Foundation
-import Contacts
 import appdirs
+import AppKit
+import Contacts
+import Foundation
 import Levenshtein
 import requests
 from selenium import webdriver
@@ -64,8 +64,7 @@ class GravatarProvider(Provider):
         email_store = person.valueForProperty_(AddressBook.kABEmailProperty)
         n_emails = AddressBook.ABMultiValueCount(email_store)
         emails = [
-            AddressBook.ABMultiValueCopyValueAtIndex(email_store, idx).encode().decode()
-            for idx in range(n_emails)
+            AddressBook.ABMultiValueCopyValueAtIndex(email_store, idx).encode().decode() for idx in range(n_emails)
         ]
 
         for email in emails:
@@ -94,9 +93,7 @@ class LinkedInProvider(Provider):
         password_field.clear()
         password_field.send_keys(password)
 
-        login_button = self.driver.find_element(
-            by=By.CSS_SELECTOR, value="[type='submit']"
-        )
+        login_button = self.driver.find_element(by=By.CSS_SELECTOR, value="[type='submit']")
         login_button.click()
 
         if self.driver.current_url == "https://www.linkedin.com/check/manage-account":
@@ -132,9 +129,7 @@ class LinkedInProvider(Provider):
         first_result_link.click()
         try:
             wait.WebDriverWait(self.driver, timeout=5).until(
-                method=expected_conditions.presence_of_element_located(
-                    (By.ID, "profile-content")
-                )
+                method=expected_conditions.presence_of_element_located((By.ID, "profile-content"))
             )
         except exceptions.TimeoutException:
             return None
@@ -162,17 +157,13 @@ class LinkedInProvider(Provider):
         if not profile_url:
             return False
 
-        profile_picture_button = self.driver.find_element(
-            by=By.CLASS_NAME, value="pv-top-card__non-self-photo-wrapper"
-        )
+        profile_picture_button = self.driver.find_element(by=By.CLASS_NAME, value="pv-top-card__non-self-photo-wrapper")
         profile_picture_button.click()
 
         picture_element = None
         picture_elements = self.driver.find_elements(by=By.TAG_NAME, value="img")
         for pe in picture_elements:
-            if any(
-                img_cls in pe.get_attribute("class") for img_cls in self._img_classes
-            ):
+            if any(img_cls in pe.get_attribute("class") for img_cls in self._img_classes):
                 picture_element = pe
                 break
 
@@ -192,9 +183,7 @@ class LinkedInProvider(Provider):
         return False
 
 
-def find_picture_for_person(
-    person: AddressBook.ABPerson, file_path: str, providers: List[Provider]
-) -> bool:
+def find_picture_for_person(person: AddressBook.ABPerson, file_path: str, providers: List[Provider]) -> bool:
     first_name, last_name = person_get_name(person)
     name = f"{first_name} {last_name}"
 
@@ -226,9 +215,7 @@ def apply_picture_for_person(person: AddressBook.ABPerson, file_path: str) -> bo
     image_data = read_img(file_path)
     tiff_data = image_data.TIFFRepresentation()
     bitmap_image = AppKit.NSBitmapImageRep.alloc().initWithData_(tiff_data)
-    jpeg_data = bitmap_image.representationUsingType_properties_(
-        AppKit.NSJPEGFileType, None
-    )
+    jpeg_data = bitmap_image.representationUsingType_properties_(AppKit.NSJPEGFileType, None)
     return person.setImageData_(jpeg_data)
 
 
@@ -250,9 +237,7 @@ def main(config: argparse.Namespace):
             with open(credentials_file_path, "w") as credentials_file:
                 credentials.write(credentials_file)
 
-            logger.info(
-                f"The template credentials file has been written to {credentials_file_path}"
-            )
+            logger.info(f"The template credentials file has been written to {credentials_file_path}")
             exit(0)
         else:
             credentials = dict()
@@ -265,10 +250,7 @@ def main(config: argparse.Namespace):
         credentials.read(credentials_file_path)
 
     providers = []
-    if (
-        not getattr(config.providers, "no_linkedin", False)
-        and "linkedin" in credentials
-    ):
+    if not getattr(config.providers, "no_linkedin", False) and "linkedin" in credentials:
         providers.append(
             LinkedInProvider(
                 username=credentials["linkedin"]["username"],
@@ -282,9 +264,7 @@ def main(config: argparse.Namespace):
     for person in book.people():
         first_name, last_name = person_get_name(person)
         name = f"{first_name} {last_name}"
-        file_path = os.path.join(
-            output_path, f"{first_name.lower()}_{last_name.lower()}.jpg"
-        )
+        file_path = os.path.join(output_path, f"{first_name.lower()}_{last_name.lower()}.jpg")
 
         should_update = find_picture_for_person(person, file_path, providers)
         if not should_update:

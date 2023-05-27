@@ -279,23 +279,24 @@ def find_picture_for_person(person: AddressBook.ABPerson, file_path: str, provid
         logger.info(f"{name}: already has a profile picture.")
         write_img(image_data, file_path, AppKit.NSJPEGFileType)
         return False
-    elif os.path.exists(file_path):
+
+    if os.path.exists(file_path):
         logger.info(f"{name}: A profile picture has already been downloaded.")
         return True
-    else:
-        logger.info(f"{name}: Getting a profile picture.")
-        success = False
-        for provider in providers:
-            success = provider.get_image(file_name=file_path, person=person)
-            if success:
-                break
 
+    logger.info(f"{name}: Getting a profile picture.")
+    success = False
+    for provider in providers:
+        success = provider.get_image(file_name=file_path, person=person)
         if success:
-            logger.info(f"{name}: Successfully found a profile picture.")
-        else:
-            logger.warning(f"{name}: Failed to find a profile picture.")
+            break
 
-        return success
+    if success:
+        logger.info(f"{name}: Successfully found a profile picture.")
+    else:
+        logger.warning(f"{name}: Failed to find a profile picture.")
+
+    return success
 
 
 def apply_picture_for_person(person: AddressBook.ABPerson, file_path: str) -> bool:
@@ -355,6 +356,7 @@ def main(config: argparse.Namespace):
 
         should_update = find_picture_for_person(person, file_path, providers)
         if not should_update:
+            book.save()
             continue
 
         success = apply_picture_for_person(person, file_path)

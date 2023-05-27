@@ -173,6 +173,9 @@ class LinkedInProvider(Provider):
 
         picture_source = picture_element.get_attribute("src")
         logging.debug(f"{name}: picture url found {picture_source}")
+        if "https://" not in picture_source:
+            logging.debug(f"{name}: doesn't have a profile picture, skipping.")
+            return False
 
         picture = requests.get(picture_source, allow_redirects=True)
         if picture.status_code == 200:

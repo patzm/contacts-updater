@@ -2,7 +2,7 @@
 Updates contacts in the *Contacts* app on macOS.
 Specifically, the following features are supported:
 * Download a new profile picture if a contact doesn't have one yet.
-* If social m
+* If social media providers are used, stores the profile information in the contact.
 
 Sources / providers:
 * [Gravatar](https://gravatar.com)

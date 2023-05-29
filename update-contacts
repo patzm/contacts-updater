@@ -43,7 +43,7 @@ def write_img(image_data: Foundation.NSData, file_path: str, file_format: int):
     img_rep = AppKit.NSBitmapImageRep.alloc().initWithFocusedViewRect_(rect)
     image.unlockFocus()
 
-    data = img_rep.representationUsingType_properties_(file_format, None)
+    data = img_rep.representationUsingType_properties_(file_format, None)  # no compression
     data.writeToFile_atomically_(file_path, False)
 
 
@@ -302,7 +302,9 @@ def apply_picture_for_person(person: AddressBook.ABPerson, file_path: str) -> bo
     image_data = read_img(file_path)
     tiff_data = image_data.TIFFRepresentation()
     bitmap_image = AppKit.NSBitmapImageRep.alloc().initWithData_(tiff_data)
-    jpeg_data = bitmap_image.representationUsingType_properties_(AppKit.NSJPEGFileType, None)
+    jpeg_data = bitmap_image.representationUsingType_properties_(
+        AppKit.NSJPEGFileType, {AppKit.NSImageCompressionFactor: 0.7}
+    )
     return person.setImageData_(jpeg_data)
 
 

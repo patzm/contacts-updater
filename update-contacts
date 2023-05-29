@@ -13,7 +13,6 @@ from typing import List, Optional, Tuple
 import AddressBook
 import appdirs
 import AppKit
-import Contacts
 import Foundation
 import Levenshtein
 import requests

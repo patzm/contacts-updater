@@ -31,13 +31,85 @@ logger = logging.getLogger(app_name)
 logger.setLevel(logging.NOTSET)
 
 
+def maybe_crop_square_img(file_path: str, image: Foundation.NSImage) -> Foundation.NSImage:
+    if image.size().width == image.size().height:
+        return image
+
+    aspect_ratio = image.size().width / image.size().height
+    if not (0.95 < aspect_ratio < 1.05):
+        logger.warning(
+            f"The image is not square ({image.size().width}x{image.size().height}). "
+            f"Applying center-crop.\n"
+            f"Edit {file_path} directly to pick the desired crop."
+        )
+
+    square_size = int(min(image.size().width, image.size().height))
+
+    # Calculate the origin of the square
+    origin_x = (image.size().width - square_size) / 2
+    origin_y = (image.size().height - square_size) / 2
+
+    # Create a new image of the correct size
+    square_image = Foundation.NSImage.alloc().initWithSize_(Foundation.NSMakeSize(square_size, square_size))
+
+    # Draw the portion of the original image that we want into the new image
+    square_image.lockFocus()
+    image.drawInRect_fromRect_operation_fraction_(
+        Foundation.NSMakeRect(0, 0, square_size, square_size),  # Destination rectangle
+        Foundation.NSMakeRect(origin_x, origin_y, square_size, square_size),  # Source rectangle
+        AppKit.NSCompositingOperationSourceOver,
+        1.0,
+    )
+    square_image.unlockFocus()
+    return square_image
+
+
 def read_img(file_path: str) -> Foundation.NSImage:
     image = Foundation.NSImage.alloc().initWithContentsOfFile_(file_path)
+    assert image.isValid(), f"Loaded invalid image file {file_path}"
     return image
 
 
-def write_img(image_data: Foundation.NSData, file_path: str, file_format: int):
-    image = Foundation.NSImage.alloc().initWithData_(image_data)
+def scale_crop_img(file_path: str, image: Foundation.NSImage) -> Foundation.NSImage:
+    image = maybe_crop_square_img(file_path, image)
+
+    target_size = 256
+    scaled_size = Foundation.NSMakeSize(target_size, target_size)
+    if image.size() > scaled_size:
+        image = resize_image(image, scaled_size)
+
+    return image
+
+
+def resize_image(image: Foundation.NSImage, new_size: Foundation.CGSize) -> Foundation.NSImage:
+    bitmap_rep = Foundation.NSBitmapImageRep.alloc().initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bitmapFormat_bytesPerRow_bitsPerPixel_(
+        None, new_size.width, new_size.height, 8, 4, True, False, AppKit.NSCalibratedRGBColorSpace, 0, 0, 0
+    )
+
+    if bitmap_rep is None:
+        return None
+
+    bitmap_rep.setSize_(new_size)
+    Foundation.NSGraphicsContext.saveGraphicsState()
+    Foundation.NSGraphicsContext.setCurrentContext_(
+        Foundation.NSGraphicsContext.graphicsContextWithBitmapImageRep_(bitmap_rep)
+    )
+
+    # Assuming self is an NSImage, draw the image into the context
+    image.drawInRect_fromRect_operation_fraction_(
+        Foundation.NSMakeRect(0, 0, new_size.width, new_size.height),
+        Foundation.NSMakeRect(0, 0, image.size().width, image.size().height),
+        AppKit.NSCompositeCopy,
+        1.0,
+    )
+    Foundation.NSGraphicsContext.restoreGraphicsState()
+
+    resized_image = Foundation.NSImage.alloc().initWithSize_(new_size)
+    resized_image.addRepresentation_(bitmap_rep)
+    return resized_image
+
+
+def write_img(image: Foundation.NSImage, file_path: str, file_format: int):
     image.lockFocus()
     rect = Foundation.NSMakeRect(0.0, 0.0, image.size().width, image.size().height)
     img_rep = AppKit.NSBitmapImageRep.alloc().initWithFocusedViewRect_(rect)
@@ -276,7 +348,8 @@ def find_picture_for_person(person: AddressBook.ABPerson, file_path: str, provid
     image_data = person.imageData()
     if image_data:
         logger.info(f"{name}: already has a profile picture.")
-        write_img(image_data, file_path, AppKit.NSJPEGFileType)
+        image = Foundation.NSImage.alloc().initWithData_(image_data)
+        write_img(image, file_path, AppKit.NSJPEGFileType)
         return False
 
     if os.path.exists(file_path):
@@ -299,8 +372,9 @@ def find_picture_for_person(person: AddressBook.ABPerson, file_path: str, provid
 
 
 def apply_picture_for_person(person: AddressBook.ABPerson, file_path: str) -> bool:
-    image_data = read_img(file_path)
-    tiff_data = image_data.TIFFRepresentation()
+    image = read_img(file_path)
+    scaled_image = scale_crop_img(file_path, image)
+    tiff_data = scaled_image.TIFFRepresentation()
     bitmap_image = AppKit.NSBitmapImageRep.alloc().initWithData_(tiff_data)
     jpeg_data = bitmap_image.representationUsingType_properties_(
         AppKit.NSJPEGFileType, {AppKit.NSImageCompressionFactor: 0.7}

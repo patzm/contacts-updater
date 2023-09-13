@@ -2,4 +2,4 @@ appdirs
 pyobjc-framework-AddressBook
 pyobjc-framework-Contacts
 requests
-pip install patzm-crawlers @ git+https://github.com/patzm/patzm-crawlers@v0.0.1
+patzm-crawlers @ git+https://github.com/patzm/patzm-crawlers@v0.0.1

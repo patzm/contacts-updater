@@ -1,6 +1,5 @@
 appdirs
-levenshtein
 pyobjc-framework-AddressBook
 pyobjc-framework-Contacts
 requests
-selenium
+pip install patzm-crawlers @ git+https://github.com/patzm/patzm-crawlers@v0.0.1

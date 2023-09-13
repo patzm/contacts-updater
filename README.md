@@ -8,6 +8,7 @@ Sources / providers:
 * [Gravatar](https://gravatar.com)
 * [LinkedIn](https://www.linkedin.com/) by crawling with [Selenium](https://selenium-python.readthedocs.io/index.html)
 
+This script relies on [`patzm-crawlers`](https://github.com/patzm/patzm-crawlers).
 By default, all providers are enabled.
 Each one can be disabled using the `providers` sub-parser.
 Just invoke `--help` to see how to use it.
@@ -40,11 +41,8 @@ chmod +x update-contacts
 ````
 
 ## Running it
-If this is the first time you are running the script, and if you want to use all providers, credentials must be provided.
-Run this once and then fill in the values
-```shell
-./update-contacts --gen-config-files
-```
+Some providers need access credentials (like LinkedIn).
+If you don't disable them and don't have the credentials provided already, it will fail and tell you where to put them.
 
 Run the contact picture updater
 ```shell
